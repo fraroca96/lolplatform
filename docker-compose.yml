@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  lolplatform:
+    build: .
+    volumes:
+      - .:/app
+    working_dir: /app
+    stdin_open: true    # Allows interactive shell
+    tty: true           # For terminal use
