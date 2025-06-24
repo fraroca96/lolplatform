@@ -16,3 +16,9 @@ notebooks/
 tmp/
 
 __pycache__/
+
+# keep .env untracked
+.env
+
+
+*.egg-info

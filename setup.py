@@ -11,6 +11,7 @@ setup(
         "streamlit",
         "matplotlib",
         "seaborn",
-        "python-dotenv"
+        "python-dotenv",
+        "psycopg2-binary"
     ]
 )
