@@ -11,13 +11,16 @@ import argparse
 import ast  # For safely converting string input to a tuple
 import sys
 from dotenv import load_dotenv
-from lolplatform.config.player_data import player_dict
+from lolplatform.config.players import player_dict, compare_players_dict
 from lolplatform.config.queues import queues_dict
 from lolplatform.config.variables import variables_dict
 import psycopg2
 from lolplatform.config import log
 from lolplatform.utils import generate_date_tuples
 from psycopg2.extras import execute_values
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 def get_db_columns(cur, schema_name, table_name):
@@ -124,10 +127,16 @@ class lolData():
         self.data_path = os.environ.get("DATA_PATH", "")
         self.riot_api_key = os.environ.get("RIOT_API_KEY", "")
 
-        self.summoner_name = player_dict[self.player]["summoner_name"]
-        self.summoner_tagline = player_dict[self.player]["summoner_tagline"]
-        self.player_rol = player_dict[self.player]["rol"]
-        self.player_teamPosition = player_dict[self.player]["teamPosition"]
+        if self.player in player_dict:
+            self.summoner_name = player_dict[self.player]["summoner_name"]
+            self.summoner_tagline = player_dict[self.player]["summoner_tagline"]
+            self.player_rol = player_dict[self.player]["rol"]
+            self.player_teamPosition = player_dict[self.player]["teamPosition"]
+        else:
+            self.summoner_name = compare_players_dict[self.player]["summoner_name"]
+            self.summoner_tagline = compare_players_dict[self.player]["summoner_tagline"]
+            self.player_rol = compare_players_dict[self.player]["rol"]
+            self.player_teamPosition = compare_players_dict[self.player]["teamPosition"]    
 
 
         self.conn = psycopg2.connect(
@@ -159,7 +168,6 @@ class lolData():
         player_info = resp.json()
         puuid = player_info['puuid']
         
-        # print(puuid)
         self.puuid = puuid
 
 
@@ -202,7 +210,7 @@ class lolData():
             "&start=0" + 
             "&count=" +
             str(100) + 
-            "&queueId=" + # ESTO EN REALIDAD SACA DE TODAS LAS COLAS (PROBLEMA CON API!!! - ANTES ERA "queue", PERO DEJÓ DE FUNCIONAR)
+            "&queueId=" +
             str(self.queue_id) + 
             "&api_key=" + 
             self.riot_api_key
@@ -305,10 +313,13 @@ class lolData():
             self.df_all_player_data_date_range = self.df_all_player_data_date_range.sort_values('match_timestamp', ascending = False)
             self.df_all_player_data_date_range = self.df_all_player_data_date_range[['match_timestamp']+list(self.df_all_player_data_date_range.columns.drop('match_timestamp'))]
 
+            for col in self.df_all_player_data_date_range.columns:
+                # Check if there are any actual booleans in the column
+                if self.df_all_player_data_date_range[col].apply(lambda x: isinstance(x, bool)).any():
+                    self.df_all_player_data_date_range[col] = self.df_all_player_data_date_range[col].astype(bool)
+
         else:
             print(f"No matches in this period for {self.player}")
-            # log.log("w", f" -->No matches in this period for {self.player}")
-            # sys.exit()
 
 
 
@@ -323,19 +334,16 @@ class lolData():
         except Exception as e:
             print("ERROR: Cursor/connection not valid:", e)
 
-        db_columns = get_db_columns(self.cur, self.schema, self.table_name)
-        # print(f"DEBUG: db_columns returned = {db_columns}")
-
         columns = list(self.df_all_player_data_date_range.columns)
         values = [tuple(row) for row in self.df_all_player_data_date_range.to_numpy()]  # Handles all data types
+  
         col_str = ', '.join(columns)
-
-        db_columns = get_db_columns(self.cur, self.schema, self.table_name)
         
         # Normalize DataFrame columns to lowercase
         self.df_all_player_data_date_range.columns = [col.lower() for col in self.df_all_player_data_date_range.columns]
 
         # Get DB columns
+        db_columns = get_db_columns(self.cur, self.schema, self.table_name)
         db_columns = get_db_columns(self.cur, self.schema, self.table_name)
 
         # Add any missing DB columns to DataFrame with default None
@@ -370,7 +378,6 @@ class lolData():
         ''
 
 
-
     def batch_download(self, batch_start_date, batch_end_date):
         ''''''
 
@@ -394,14 +401,16 @@ class lolData():
         self.start_date = start_date
         self.date_tuples = generate_date_tuples(start_time=self.start_date)
 
+        print(self.date_tuples)
+        # sys.exit()
+
         for date_tuple in self.date_tuples:
-                while True:
-                    try:
-                        self.batch_download(batch_start_date=date_tuple[0],
-                                            batch_end_date=date_tuple[1])
-                        
-                    except Exception as e:
-                        print("ERROR ->", e)
+            try:
+                self.batch_download(batch_start_date=date_tuple[0],
+                                    batch_end_date=date_tuple[1])
+                
+            except Exception as e:
+                print(f"ERROR for player {self.summoner_name} ->", e)
         
     
         self.crop_tables() # sólo mantenemos datos de como mucho hace un año
