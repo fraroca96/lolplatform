@@ -1,0 +1,24 @@
+# Compiled Python bytecode
+*.py[cod]
+
+# Log files
+*.log
+
+LOGS/*
+
+DATA/*
+
+# csv files
+*.csv
+
+notebooks/
+
+tmp/
+
+__pycache__/
+
+# keep .env untracked
+.env
+
+
+*.egg-info
