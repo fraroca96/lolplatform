@@ -2,16 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 def plot_win_loss_boxplot(player, player_data, variable):
-    """
-    Creates a boxplot of the specified variable grouped by the 'win' column in the dataframe.
-
-    Parameters:
-    - df: pandas DataFrame containing at least 'win' and the specified variable columns
-    - variable: str, the column name to plot the distribution of
-
-    Returns:
-    - fig, ax: matplotlib Figure and Axes objects with the boxplot
-    """
     df = player_data.copy()
     
     # Create figure and axis
